@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { StickyNote, ArrowLeft, Plus } from 'lucide-react';
+import {ArrowLeft, Plus } from 'lucide-react';
 
 interface Note {
     _id: string;
@@ -119,3 +119,4 @@ export default function Notes() {
         </div>
     );
 }
+
