@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowLeft, CheckCircle, Circle } from 'lucide-react';
+const API_URL = import.meta.env.VITE_API_URL;
+
 
 interface Question {
     _id: string;
@@ -19,7 +21,7 @@ export default function Tracker() {
     const [filter, setFilter] = useState<'All' | 'Solved' | 'Pending'>('All');
     const [loading, setLoading] = useState(true);
 
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
 
     useEffect(() => {
         fetchData();
@@ -28,8 +30,8 @@ export default function Tracker() {
     const fetchData = async () => {
         try {
             const [qRes, uRes] = await Promise.all([
-                fetch('http://localhost:3000/api/questions'),
-                user._id ? fetch(`http://localhost:3000/api/users/${user._id}`) : Promise.resolve(null)
+                fetch(`${API_URL}/api/questions`),
+                user._id ? fetch(`${API_URL}/api/users/${user._id}`) : Promise.resolve(null)
             ]);
 
             if (qRes.ok) {
@@ -48,23 +50,24 @@ export default function Tracker() {
         }
     };
 
-    const handleSolve = async (questionId: string) => {
-        if (!user._id) return;
-        try {
-            const res = await fetch('http://localhost:3000/api/users/solve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: user._id, questionId })
-            });
-            if (res.ok) {
-                const updatedUser = await res.json();
-                setSolvedIds([...solvedIds, questionId]);
-                // Optionally update local storage stats
-            }
-        } catch (error) {
-            console.error('Error marking solved:', error);
+   const handleSolve = async (questionId: string) => {
+    if (!user?._id) return;
+
+    try {
+        const res = await fetch(`${API_URL}/api/users/solve`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user._id, questionId })
+        });
+
+        if (res.ok) {
+            setSolvedIds((prev) => [...prev, questionId]);
         }
-    };
+    } catch (error) {
+        console.error('Error marking solved:', error);
+    }
+};
+
 
     const filteredQuestions = questions.filter((q) => {
         const isSolved = solvedIds.includes(q._id);
@@ -208,3 +211,4 @@ export default function Tracker() {
         </div>
     );
 }
+
