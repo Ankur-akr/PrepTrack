@@ -21,7 +21,7 @@ const Navbar = ({ theme, toggleTheme }) => {
       <div className="navbar-container">
         <div className="navbar-left">
           <div className="navbar-logo" style={{ display: 'flex', alignItems: 'center' }}>
-            <img src="/logo.png" alt="PrepTrack Logo" style={{ height: '48px', marginRight: '0.75rem' }} />
+            <img src="/prepTrackdark.png" alt="PrepTrack Logo" style={{ height: '48px', marginRight: '0.75rem' }} />
             <span style={{ fontWeight: 800, fontSize: '1.4rem', letterSpacing: '-0.5px' }}>prep<span style={{ color: 'var(--success)' }}>Track</span></span>
           </div>
           <div className="navbar-links">
