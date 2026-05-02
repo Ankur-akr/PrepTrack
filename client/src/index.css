@@ -1,43 +1,61 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* LeetCode Dark Theme Colors */
-  --bg-primary: #1a1a1a;        /* Body background */
-  --bg-secondary: #282828;      /* Card / Navbar background */
-  --bg-tertiary: #3e3e3e;       /* Borders, secondary areas */
-  --bg-hover: #3a3a3a;          /* Hover states */
+  /* Logo Inspired Light Theme Colors - Khadi/Cream Vibe */
+  --bg-primary: #fbf8f1;        /* Subtle cream/khadi background */
+  --bg-secondary: #ffffff;      /* Clean white cards */
+  --bg-tertiary: #f4efe6;       /* Borders, secondary areas */
+  --bg-hover: #f0eadc;          /* Hover states */
   
-  --text-primary: #eff1f6;      /* Main text */
-  --text-secondary: #8a8a8a;    /* Muted text */
-  --text-tertiary: #5c5c5c;     /* Very muted text */
+  --text-primary: #2d2a26;      /* Deep warm slate text */
+  --text-secondary: #6b635e;    /* Muted warm text */
+  --text-tertiary: #a39c95;     /* Very muted warm text */
   
-  --accent-primary: #ffa116;    /* LeetCode Orange */
-  --accent-primary-hover: #ffb84d;
-  --accent-secondary: #00b8a3;  /* LC Easy Green */
+  --accent-primary: #34A853;    /* Logo Green */
+  --accent-primary-hover: #2b8a44;
+  --accent-secondary: #4285F4;  /* Logo Blue */
   
-  --border-color: #3e3e3e;      /* Subtle border */
+  --border-color: #e8e2d5;      /* Subtle warm border */
   
-  --success: #00b8a3;           /* Easy */
-  --warning: #ffc01e;           /* Medium */
-  --danger: #ff375f;            /* Hard */
-  --info: #0ea5e9;
+  --success: #34A853;           /* Green */
+  --warning: #FBBC05;           /* Yellow/Orange */
+  --danger: #EA4335;            /* Red */
+  --info: #4285F4;              /* Blue */
   
   /* Difficulty Colors */
-  --diff-easy: #00b8a3;
-  --diff-easy-bg: rgba(0, 184, 163, 0.15);
-  --diff-medium: #ffc01e;
-  --diff-medium-bg: rgba(255, 192, 30, 0.15);
-  --diff-hard: #ff375f;
-  --diff-hard-bg: rgba(255, 55, 95, 0.15);
+  --diff-easy: #34A853;
+  --diff-easy-bg: rgba(52, 168, 83, 0.15);
+  --diff-medium: #FBBC05;
+  --diff-medium-bg: rgba(251, 188, 5, 0.15);
+  --diff-hard: #EA4335;
+  --diff-hard-bg: rgba(234, 67, 53, 0.15);
   
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
   
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+}
+
+[data-theme='dark'] {
+  /* Logo Inspired Dark Theme Colors */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #282828;
+  --bg-tertiary: #3e3e3e;
+  --bg-hover: #3a3a3a;
+  
+  --text-primary: #eff1f6;
+  --text-secondary: #8a8a8a;
+  --text-tertiary: #5c5c5c;
+  
+  --border-color: #3e3e3e;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -52,6 +70,7 @@ body {
   color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -82,12 +101,13 @@ input, select, textarea {
   font-family: 'Inter', sans-serif;
 }
 
-/* Solid flat cards for LeetCode look */
+/* Solid flat cards for LeetCode/Logo look */
 .glass {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
   border-radius: var(--radius-lg);
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Button variants */

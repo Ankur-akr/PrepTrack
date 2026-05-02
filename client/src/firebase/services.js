@@ -132,3 +132,61 @@ export const markRevision = async (userId, problemId, currentCount) => {
     throw error;
   }
 };
+
+// --- Notes Services ---
+
+export const addNote = async (userId, noteData) => {
+  try {
+    const notesRef = collection(db, "users", userId, "notes");
+    const docRef = await addDoc(notesRef, {
+      ...noteData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    return { id: docRef.id, ...noteData };
+  } catch (error) {
+    console.error("Error adding note: ", error);
+    throw error;
+  }
+};
+
+export const getUserNotes = async (userId) => {
+  try {
+    const notesRef = collection(db, "users", userId, "notes");
+    const q = query(notesRef, orderBy("createdAt", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error("Error getting notes: ", error);
+    return [];
+  }
+};
+
+export const updateNote = async (userId, noteId, updates) => {
+  try {
+    const noteRef = doc(db, "users", userId, "notes", noteId);
+    await updateDoc(noteRef, {
+      ...updates,
+      updatedAt: serverTimestamp()
+    });
+    return true;
+  } catch (error) {
+    console.error("Error updating note: ", error);
+    throw error;
+  }
+};
+
+export const deleteNote = async (userId, noteId) => {
+  try {
+    const noteRef = doc(db, "users", userId, "notes", noteId);
+    await deleteDoc(noteRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting note: ", error);
+    throw error;
+  }
+};
