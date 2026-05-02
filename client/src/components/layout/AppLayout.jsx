@@ -13,11 +13,21 @@ const AppLayout = ({ children }) => {
   };
 
   return (
-    <div className="app-container">
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar theme={theme} toggleTheme={toggleTheme} />
-      <main className="main-content">
+      <main className="main-content" style={{ flex: 1 }}>
         {children}
       </main>
+      <footer style={{
+        textAlign: 'center',
+        padding: '1.5rem',
+        color: 'var(--text-secondary)',
+        fontSize: '0.9rem',
+        borderTop: '1px solid var(--border-color)',
+        backgroundColor: 'var(--bg-primary)'
+      }}>
+        Developed with ❤️ by Ankur Rai
+      </footer>
     </div>
   );
 };
