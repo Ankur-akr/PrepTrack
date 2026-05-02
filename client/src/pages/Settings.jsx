@@ -52,7 +52,8 @@ const Settings = () => {
 
     try {
       // Fetch recent 15 AC submissions from LeetCode
-      const response = await fetch('http://localhost:5000/api/leetcode', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/leetcode`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -150,13 +151,14 @@ const Settings = () => {
           
           <div className="form-group" style={{ marginBottom: '2rem' }}>
             <label className="form-label">LeetCode Username</label>
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <input 
                 type="text" 
                 className="form-input" 
                 placeholder="e.g. neetcode"
                 value={leetcodeHandle}
                 onChange={e => setLeetcodeHandle(e.target.value)}
+                style={{ flex: 1, minWidth: '200px' }}
               />
               <button 
                 className="btn btn-outline" 
