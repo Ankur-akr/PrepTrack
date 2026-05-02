@@ -9,6 +9,7 @@ import Problems from './pages/Problems';
 import Settings from './pages/Settings';
 import Revisions from './pages/Revisions';
 import Favourites from './pages/Favourites';
+import Notes from './pages/Notes';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser, loading } = useAuth();
@@ -30,6 +31,7 @@ function App() {
         <Route path="/problems" element={<ProtectedRoute><Problems /></ProtectedRoute>} />
         <Route path="/revisions" element={<ProtectedRoute><Revisions /></ProtectedRoute>} />
         <Route path="/favourites" element={<ProtectedRoute><Favourites /></ProtectedRoute>} />
+        <Route path="/notes" element={<ProtectedRoute><Notes /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       </Routes>
     </Router>

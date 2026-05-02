@@ -47,7 +47,7 @@ const Dashboard = () => {
   return (
     <div className="content-wrapper">
       <div style={{ marginBottom: '2rem' }}>
-        <h2 style={{ fontSize: '2rem' }}>Welcome Back! 👋</h2>
+        <h2 style={{ fontSize: '2rem' }}>Welcome Back, {currentUser?.displayName || 'User'}! 👋</h2>
         <p style={{ color: 'var(--text-secondary)' }}>Here's an overview of your DSA preparation journey.</p>
       </div>
 

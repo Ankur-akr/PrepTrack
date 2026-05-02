@@ -4,7 +4,8 @@ import {
   signInWithPopup, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  signOut 
+  signOut,
+  updateProfile
 } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase/config';
 
@@ -47,9 +48,15 @@ export const AuthProvider = ({ children }) => {
     return signInWithEmailAndPassword(auth, email, password);
   };
 
-  const registerWithEmail = (email, password) => {
+  const registerWithEmail = async (email, password, name) => {
     if (useMockAuth) return Promise.resolve();
-    return createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    if (name) {
+      await updateProfile(userCredential.user, { displayName: name });
+      // Force update currentUser state so UI reflects the name immediately
+      setCurrentUser({ ...userCredential.user, displayName: name });
+    }
+    return userCredential;
   };
 
   const logout = () => {

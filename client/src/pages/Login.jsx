@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
@@ -17,7 +18,7 @@ const Login = () => {
     
     try {
       if (isRegister) {
-        await registerWithEmail(email, password);
+        await registerWithEmail(email, password, name);
       } else {
         await loginWithEmail(email, password);
       }
@@ -47,6 +48,19 @@ const Login = () => {
         {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', textAlign: 'center', fontSize: '0.9rem' }}>{error}</div>}
 
         <form onSubmit={handleSubmit}>
+          {isRegister && (
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="John Doe"
+                required={isRegister}
+              />
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label">Email</label>
             <input 
