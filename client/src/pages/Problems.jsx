@@ -13,6 +13,10 @@ const Problems = () => {
   const [editingProblem, setEditingProblem] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [showFilters, setShowFilters] = useState(false);
+  const [difficultyFilter, setDifficultyFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('All');
+
   useEffect(() => {
     const fetchProblems = async () => {
       if (!currentUser) return;
@@ -75,10 +79,13 @@ const Problems = () => {
     }
   };
 
-  const filteredProblems = problems.filter(p => 
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.topic.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProblems = problems.filter(p => {
+    const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.topic.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesDifficulty = difficultyFilter === 'All' || p.difficulty === difficultyFilter;
+    const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
+    return matchesSearch && matchesDifficulty && matchesStatus;
+  });
 
   return (
     <div className="content-wrapper">
@@ -92,21 +99,59 @@ const Problems = () => {
         </button>
       </div>
 
-      <div className="glass" style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: 1 }}>
-          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-          <input 
-            type="text" 
-            placeholder="Search problems..." 
-            className="form-input"
-            style={{ paddingLeft: '2.5rem', backgroundColor: 'var(--bg-primary)' }}
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
+      <div className="glass" style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+            <input 
+              type="text" 
+              placeholder="Search problems..." 
+              className="form-input"
+              style={{ paddingLeft: '2.5rem', backgroundColor: 'var(--bg-primary)' }}
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <button 
+            className={`btn ${showFilters ? 'btn-primary' : 'btn-outline'}`} 
+            style={{ padding: '0.75rem 1rem' }}
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter size={18} /> Filters
+          </button>
         </div>
-        <button className="btn btn-outline" style={{ padding: '0.75rem 1rem' }}>
-          <Filter size={18} /> Filters
-        </button>
+
+        {showFilters && (
+          <div style={{ display: 'flex', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Difficulty:</label>
+              <select 
+                className="form-input" 
+                style={{ width: 'auto', padding: '0.4rem 1rem' }}
+                value={difficultyFilter}
+                onChange={(e) => setDifficultyFilter(e.target.value)}
+              >
+                <option value="All">All</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Status:</label>
+              <select 
+                className="form-input" 
+                style={{ width: 'auto', padding: '0.4rem 1rem' }}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="All">All</option>
+                <option value="Solved">Solved</option>
+                <option value="Unsolved">Unsolved</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="glass" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
