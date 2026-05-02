@@ -2,6 +2,8 @@
 
 **PrepTrack** is a modern, full-stack web application designed to help developers **track, analyze, and improve** their Data Structures & Algorithms (DSA) preparation across multiple platforms—all in one place.
 
+Live link: https://preptrack-c7d42.web.app 
+
 ![PrepTrack Dashboard Preview](https://preptrack-c7d42.web.app/login-bg.png)  
 *(Login screen illustration used in the app)*
 
