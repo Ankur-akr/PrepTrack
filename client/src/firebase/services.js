@@ -64,11 +64,12 @@ export const addProblem = async (userId, problemData) => {
 
     const docRef = await addDoc(problemsRef, {
       ...problemData,
+      isFavourite: false,
       createdAt: serverTimestamp(),
       lastRevised: serverTimestamp(),
       revisionCount: 0
     });
-    return { id: docRef.id, ...problemData };
+    return { id: docRef.id, isFavourite: false, ...problemData };
   } catch (error) {
     console.error("Error adding problem: ", error);
     throw error;
@@ -102,6 +103,17 @@ export const updateProblemStatus = async (userId, problemId, updates) => {
     return true;
   } catch (error) {
     console.error("Error updating problem: ", error);
+    throw error;
+  }
+};
+
+export const deleteProblem = async (userId, problemId) => {
+  try {
+    const problemRef = doc(db, "users", userId, "problems", problemId);
+    await deleteDoc(problemRef);
+    return true;
+  } catch (error) {
+    console.error("Error deleting problem: ", error);
     throw error;
   }
 };

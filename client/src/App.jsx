@@ -7,9 +7,8 @@ import './App.css';
 import Dashboard from './pages/Dashboard';
 import Problems from './pages/Problems';
 import Settings from './pages/Settings';
-
-// Placeholder Components for Pages
-const Revisions = () => <div className="content-wrapper"><h2>Revisions</h2><p>Review these problems</p></div>;
+import Revisions from './pages/Revisions';
+import Favourites from './pages/Favourites';
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser, loading } = useAuth();
@@ -30,6 +29,7 @@ function App() {
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/problems" element={<ProtectedRoute><Problems /></ProtectedRoute>} />
         <Route path="/revisions" element={<ProtectedRoute><Revisions /></ProtectedRoute>} />
+        <Route path="/favourites" element={<ProtectedRoute><Favourites /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       </Routes>
     </Router>

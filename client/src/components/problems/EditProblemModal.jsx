@@ -13,19 +13,30 @@ const EditProblemModal = ({ isOpen, onClose, onEdit, problem }) => {
     status: 'Solved',
     url: ''
   });
+  const [customPlatform, setCustomPlatform] = useState('');
+  const [customTopic, setCustomTopic] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const predefinedPlatforms = ['LeetCode', 'Codeforces', 'HackerRank', 'GeeksforGeeks'];
+  const predefinedTopics = ['Array', 'String', 'Linked List', 'Tree', 'Graph', 'DP', 'Math', 'Greedy'];
+
   useEffect(() => {
     if (problem && isOpen) {
+      const isCustomPlatform = problem.platform && !predefinedPlatforms.includes(problem.platform);
+      const isCustomTopic = problem.topic && !predefinedTopics.includes(problem.topic);
+
       setFormData({
         title: problem.title || '',
-        platform: problem.platform || 'LeetCode',
+        platform: isCustomPlatform ? 'Other' : (problem.platform || 'LeetCode'),
         difficulty: problem.difficulty || 'Easy',
-        topic: problem.topic || 'Array',
+        topic: isCustomTopic ? 'Other' : (problem.topic || 'Array'),
         status: problem.status || 'Solved',
         url: problem.url || ''
       });
+      
+      setCustomPlatform(isCustomPlatform ? problem.platform : '');
+      setCustomTopic(isCustomTopic ? problem.topic : '');
       setError('');
     }
   }, [problem, isOpen]);
@@ -47,8 +58,14 @@ const EditProblemModal = ({ isOpen, onClose, onEdit, problem }) => {
     setError('');
 
     try {
-      await updateProblemStatus(currentUser.uid, problem.id, formData);
-      onEdit({ ...problem, ...formData });
+      const finalData = {
+        ...formData,
+        platform: formData.platform === 'Other' && customPlatform ? customPlatform : formData.platform,
+        topic: formData.topic === 'Other' && customTopic ? customTopic : formData.topic
+      };
+
+      await updateProblemStatus(currentUser.uid, problem.id, finalData);
+      onEdit({ ...problem, ...finalData });
       onClose();
     } catch (err) {
       setError('Failed to edit problem: ' + err.message);
@@ -112,12 +129,23 @@ const EditProblemModal = ({ isOpen, onClose, onEdit, problem }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Platform</label>
-              <select name="platform" className="form-input" value={formData.platform} onChange={handleChange}>
+              <select name="platform" className="form-input" value={formData.platform} onChange={handleChange} style={{ marginBottom: formData.platform === 'Other' ? '0.5rem' : '0' }}>
                 <option value="LeetCode">LeetCode</option>
                 <option value="Codeforces">Codeforces</option>
                 <option value="HackerRank">HackerRank</option>
-                <option value="Other">Other</option>
+                <option value="GeeksforGeeks">GeeksforGeeks</option>
+                <option value="Other">Other (Custom)</option>
               </select>
+              {formData.platform === 'Other' && (
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Enter custom platform"
+                  value={customPlatform}
+                  onChange={(e) => setCustomPlatform(e.target.value)}
+                  required
+                />
+              )}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Difficulty</label>
@@ -132,7 +160,7 @@ const EditProblemModal = ({ isOpen, onClose, onEdit, problem }) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Topic</label>
-              <select name="topic" className="form-input" value={formData.topic} onChange={handleChange}>
+              <select name="topic" className="form-input" value={formData.topic} onChange={handleChange} style={{ marginBottom: formData.topic === 'Other' ? '0.5rem' : '0' }}>
                 <option value="Array">Array</option>
                 <option value="String">String</option>
                 <option value="Linked List">Linked List</option>
@@ -141,8 +169,18 @@ const EditProblemModal = ({ isOpen, onClose, onEdit, problem }) => {
                 <option value="DP">Dynamic Programming</option>
                 <option value="Math">Math</option>
                 <option value="Greedy">Greedy</option>
-                <option value="Other">Other</option>
+                <option value="Other">Other (Custom)</option>
               </select>
+              {formData.topic === 'Other' && (
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Enter custom topic"
+                  value={customTopic}
+                  onChange={(e) => setCustomTopic(e.target.value)}
+                  required
+                />
+              )}
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Status</label>

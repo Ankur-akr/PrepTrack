@@ -35,12 +35,9 @@ const StatCard = ({ title, value, subtitle, icon: Icon, colorClass }) => {
 };
 
 const StatCards = ({ stats }) => {
-  // Stats could be passed down from a parent component that fetches them
   const defaultStats = {
-    totalSolved: 142,
-    streak: 12,
-    revisionsPending: 8,
-    accuracy: '85%'
+    totalSolved: 0,
+    revisionsPending: 0
   };
 
   const data = stats || defaultStats;
@@ -55,30 +52,16 @@ const StatCards = ({ stats }) => {
       <StatCard 
         title="Total Solved" 
         value={data.totalSolved} 
-        subtitle="+5 this week"
+        subtitle="Keep up the good work"
         icon={Trophy}
         colorClass="text-accent"
-      />
-      <StatCard 
-        title="Current Streak" 
-        value={`${data.streak} Days`} 
-        subtitle="Longest: 24 days"
-        icon={Flame}
-        colorClass="text-warning"
       />
       <StatCard 
         title="Pending Revisions" 
         value={data.revisionsPending} 
         subtitle="Needs attention"
         icon={CalendarSync}
-        colorClass="text-danger"
-      />
-      <StatCard 
-        title="Accuracy (Easy/Med)" 
-        value={data.accuracy} 
-        subtitle="Based on first attempts"
-        icon={Target}
-        colorClass="text-success"
+        colorClass="text-warning"
       />
     </div>
   );
