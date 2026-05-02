@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, ExternalLink, Filter, Edit2, Trash2, Star } from 'lucide-react';
-import AddProblemModal from '../components/problems/AddProblemModal';
+import { Search, ExternalLink, Filter, Edit2, Star, Trash2 } from 'lucide-react';
 import EditProblemModal from '../components/problems/EditProblemModal';
 import { useAuth } from '../context/AuthContext';
-import { getUserProblems, deleteProblem, updateProblemStatus } from '../firebase/services';
+import { getUserProblems, updateProblemStatus, deleteProblem } from '../firebase/services';
 
-const Problems = () => {
+const Favourites = () => {
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [problems, setProblems] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProblem, setEditingProblem] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,12 +26,18 @@ const Problems = () => {
     fetchProblems();
   }, [currentUser]);
 
-  const handleAddProblem = (newProblem) => {
-    setProblems([newProblem, ...problems]);
-  };
-
   const handleEditProblem = (updatedProblem) => {
     setProblems(problems.map(p => p.id === updatedProblem.id ? updatedProblem : p));
+  };
+
+  const handleToggleFavourite = async (problem) => {
+    const newFavStatus = !problem.isFavourite;
+    try {
+      await updateProblemStatus(currentUser.uid, problem.id, { isFavourite: newFavStatus });
+      setProblems(problems.map(p => p.id === problem.id ? { ...p, isFavourite: newFavStatus } : p));
+    } catch (error) {
+      alert("Failed to update favourite status: " + error.message);
+    }
   };
 
   const handleDeleteProblem = async (problemId) => {
@@ -44,16 +48,6 @@ const Problems = () => {
       } catch (error) {
         alert("Failed to delete problem: " + error.message);
       }
-    }
-  };
-
-  const handleToggleFavourite = async (problem) => {
-    const newFavStatus = !problem.isFavourite;
-    try {
-      await updateProblemStatus(currentUser.uid, problem.id, { isFavourite: newFavStatus });
-      setProblems(problems.map(p => p.id === problem.id ? { ...p, isFavourite: newFavStatus } : p));
-    } catch (error) {
-      alert("Failed to update favourite status: " + error.message);
     }
   };
 
@@ -76,20 +70,18 @@ const Problems = () => {
   };
 
   const filteredProblems = problems.filter(p => 
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.topic.toLowerCase().includes(searchTerm.toLowerCase())
+    p.isFavourite === true &&
+    (p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     p.topic.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
     <div className="content-wrapper">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem' }}>Problems</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Manage and track your DSA questions.</p>
+          <h2 style={{ fontSize: '2rem' }}>Favourites</h2>
+          <p style={{ color: 'var(--text-secondary)' }}>Your starred problems for quick access.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={20} /> Add Problem
-        </button>
       </div>
 
       <div className="glass" style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -97,7 +89,7 @@ const Problems = () => {
           <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
           <input 
             type="text" 
-            placeholder="Search problems..." 
+            placeholder="Search favourite problems..." 
             className="form-input"
             style={{ paddingLeft: '2.5rem', backgroundColor: 'var(--bg-primary)' }}
             value={searchTerm}
@@ -126,7 +118,7 @@ const Problems = () => {
               {isLoading ? (
                 <tr>
                   <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                    Loading problems...
+                    Loading favourites...
                   </td>
                 </tr>
               ) : filteredProblems.length > 0 ? (
@@ -216,7 +208,7 @@ const Problems = () => {
               ) : (
                 <tr>
                   <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                    No problems found. Click "Add Problem" to start tracking!
+                    No favourite problems yet. Click the star icon on any problem to add it here!
                   </td>
                 </tr>
               )}
@@ -224,12 +216,6 @@ const Problems = () => {
           </table>
         </div>
       </div>
-
-      <AddProblemModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onAdd={handleAddProblem} 
-      />
 
       <EditProblemModal 
         isOpen={!!editingProblem} 
@@ -241,4 +227,4 @@ const Problems = () => {
   );
 };
 
-export default Problems;
+export default Favourites;

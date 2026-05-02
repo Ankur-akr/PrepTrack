@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, ExternalLink, Filter, Edit2, Trash2, Star } from 'lucide-react';
-import AddProblemModal from '../components/problems/AddProblemModal';
+import { Search, ExternalLink, Filter, Edit2, CheckCircle, Star } from 'lucide-react';
 import EditProblemModal from '../components/problems/EditProblemModal';
 import { useAuth } from '../context/AuthContext';
-import { getUserProblems, deleteProblem, updateProblemStatus } from '../firebase/services';
+import { getUserProblems, updateProblemStatus } from '../firebase/services';
 
-const Problems = () => {
+const Revisions = () => {
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [problems, setProblems] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProblem, setEditingProblem] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -28,22 +26,16 @@ const Problems = () => {
     fetchProblems();
   }, [currentUser]);
 
-  const handleAddProblem = (newProblem) => {
-    setProblems([newProblem, ...problems]);
-  };
-
   const handleEditProblem = (updatedProblem) => {
     setProblems(problems.map(p => p.id === updatedProblem.id ? updatedProblem : p));
   };
 
-  const handleDeleteProblem = async (problemId) => {
-    if (window.confirm("Are you sure you want to delete this problem?")) {
-      try {
-        await deleteProblem(currentUser.uid, problemId);
-        setProblems(problems.filter(p => p.id !== problemId));
-      } catch (error) {
-        alert("Failed to delete problem: " + error.message);
-      }
+  const handleMarkSolved = async (problemId) => {
+    try {
+      await updateProblemStatus(currentUser.uid, problemId, { status: 'Solved' });
+      setProblems(problems.map(p => p.id === problemId ? { ...p, status: 'Solved' } : p));
+    } catch (error) {
+      alert("Failed to update status: " + error.message);
     }
   };
 
@@ -76,20 +68,18 @@ const Problems = () => {
   };
 
   const filteredProblems = problems.filter(p => 
-    p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.topic.toLowerCase().includes(searchTerm.toLowerCase())
+    p.status === 'Revision' &&
+    (p.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     p.topic.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
     <div className="content-wrapper">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
-          <h2 style={{ fontSize: '2rem' }}>Problems</h2>
-          <p style={{ color: 'var(--text-secondary)' }}>Manage and track your DSA questions.</p>
+          <h2 style={{ fontSize: '2rem' }}>Revisions</h2>
+          <p style={{ color: 'var(--text-secondary)' }}>Review problems that need your attention.</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}>
-          <Plus size={20} /> Add Problem
-        </button>
       </div>
 
       <div className="glass" style={{ padding: '1rem', borderRadius: 'var(--radius-lg)', marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -97,7 +87,7 @@ const Problems = () => {
           <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
           <input 
             type="text" 
-            placeholder="Search problems..." 
+            placeholder="Search pending revisions..." 
             className="form-input"
             style={{ paddingLeft: '2.5rem', backgroundColor: 'var(--bg-primary)' }}
             value={searchTerm}
@@ -118,15 +108,14 @@ const Problems = () => {
                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Platform</th>
                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Difficulty</th>
                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Topic</th>
-                <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Status</th>
                 <th style={{ padding: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                    Loading problems...
+                  <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                    Loading revisions...
                   </td>
                 </tr>
               ) : filteredProblems.length > 0 ? (
@@ -160,23 +149,6 @@ const Problems = () => {
                       </span>
                     </td>
                     <td style={{ padding: '1rem' }}>
-                      <span style={{ 
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        color: problem.status === 'Solved' ? 'var(--success)' : 'var(--warning)',
-                        fontSize: '0.9rem'
-                      }}>
-                        <span style={{ 
-                          width: '8px', 
-                          height: '8px', 
-                          borderRadius: '50%', 
-                          backgroundColor: 'currentColor' 
-                        }}></span>
-                        {problem.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '1rem' }}>
                       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                         <button 
                           onClick={() => handleToggleFavourite(problem)}
@@ -187,20 +159,20 @@ const Problems = () => {
                           <Star size={18} fill={problem.isFavourite ? 'var(--warning)' : 'none'} />
                         </button>
                         <button 
+                          onClick={() => handleMarkSolved(problem.id)}
+                          style={{ background: 'transparent', color: 'var(--success)', cursor: 'pointer', padding: '0.25rem' }}
+                          title="Mark as Solved"
+                          className="hover:text-success"
+                        >
+                          <CheckCircle size={18} />
+                        </button>
+                        <button 
                           onClick={() => setEditingProblem(problem)}
                           style={{ background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.25rem' }}
                           title="Edit Problem"
                           className="hover:text-accent"
                         >
                           <Edit2 size={18} />
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteProblem(problem.id)}
-                          style={{ background: 'transparent', color: 'var(--danger)', cursor: 'pointer', padding: '0.25rem', opacity: 0.8 }}
-                          title="Delete Problem"
-                          className="hover:text-danger"
-                        >
-                          <Trash2 size={18} />
                         </button>
                         {problem.url ? (
                           <a href={problem.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-tertiary)', padding: '0.25rem' }} title="View External">
@@ -215,8 +187,8 @@ const Problems = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                    No problems found. Click "Add Problem" to start tracking!
+                  <td colSpan="5" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                    No pending revisions! You're all caught up.
                   </td>
                 </tr>
               )}
@@ -224,12 +196,6 @@ const Problems = () => {
           </table>
         </div>
       </div>
-
-      <AddProblemModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onAdd={handleAddProblem} 
-      />
 
       <EditProblemModal 
         isOpen={!!editingProblem} 
@@ -241,4 +207,4 @@ const Problems = () => {
   );
 };
 
-export default Problems;
+export default Revisions;

@@ -30,13 +30,9 @@ const Dashboard = () => {
     const totalSolved = problems.filter(p => p.status === 'Solved').length;
     const revisionsPending = problems.filter(p => p.status === 'Revision').length;
     
-    // For MVP, streak and accuracy are mocked or simplified.
-    // Real implementation would require tracking daily activity.
     return {
       totalSolved,
-      streak: totalSolved > 0 ? 3 : 0, // Mocked streak
-      revisionsPending,
-      accuracy: totalSolved > 0 ? '85%' : '0%' // Mocked accuracy
+      revisionsPending
     };
   }, [problems]);
 
