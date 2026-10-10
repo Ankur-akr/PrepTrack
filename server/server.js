@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 5000;
 
 // Comma-separated list, set on Render. Example:
 // https://preptrack.ankurrai.in,https://preptrack-c7d42.web.app,http://localhost:5173
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173', ' https://preptrack.ankurrai.in', 'https://preptrack-c7d42.web.app')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
