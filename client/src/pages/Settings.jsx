@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Save, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getUserPreferences, updateUserPreferences, addProblem } from '../firebase/services';
+import { getUserPreferences, updateUserPreferences } from '../firebase/services';
+import { syncLeetCodeSubmissions } from '../firebase/leetcodeSync';
 
 const Settings = () => {
   const { currentUser } = useAuth();
@@ -42,76 +43,18 @@ const Settings = () => {
   };
 
   const handleSync = async () => {
-    if (!leetcodeHandle) {
+    const handle = leetcodeHandle.trim();
+    if (!handle) {
       setSyncMessage('Please enter a LeetCode handle first.');
       return;
     }
-
     setIsSyncing(true);
     setSyncMessage('');
-
     try {
-      // Fetch recent 15 AC submissions from LeetCode
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${apiUrl}/api/leetcode`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          query: `
-            query recentAcSubmissions($username: String!, $limit: Int!) {
-              recentAcSubmissionList(username: $username, limit: $limit) {
-                id
-                title
-                titleSlug
-                timestamp
-              }
-            }
-          `,
-          variables: {
-            username: leetcodeHandle,
-            limit: 15
-          }
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.errors) {
-        setSyncMessage('Failed to fetch stats. Please check the handle.');
-      } else {
-        const submissions = data.data.recentAcSubmissionList;
-        if (!submissions || submissions.length === 0) {
-          setSyncMessage('No recent accepted submissions found.');
-          return;
-        }
-
-        let addedCount = 0;
-        let duplicateCount = 0;
-
-        for (const sub of submissions) {
-          try {
-            await addProblem(currentUser.uid, {
-              title: sub.title,
-              platform: 'LeetCode',
-              difficulty: 'Medium', // We default to Medium since GraphQL recentAcSubmissionList doesn't return difficulty easily
-              topic: 'Other',
-              status: 'Solved',
-              url: `https://leetcode.com/problems/${sub.titleSlug}/`
-            });
-            addedCount++;
-          } catch (error) {
-            if (error.message.includes('already exists')) {
-              duplicateCount++;
-            }
-          }
-        }
-
-        setSyncMessage(`Synced successfully! Added ${addedCount} new problems (${duplicateCount} skipped). Check your dashboard.`);
-      }
+      const { message } = await syncLeetCodeSubmissions(currentUser.uid, handle);
+      setSyncMessage(message);
     } catch (err) {
-      setSyncMessage('Failed to connect to proxy server. Is it running on port 5000?');
+      setSyncMessage(`Sync failed: ${err.message}`);
     } finally {
       setIsSyncing(false);
     }

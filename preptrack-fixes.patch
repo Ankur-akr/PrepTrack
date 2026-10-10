@@ -1,0 +1,509 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..59a7a05
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,14 @@
++node_modules/
++dist/
++dist-ssr/
++.vite/
++.firebase/
++.env
++.env.*
++!.env.example
++*.log
++npm-debug.log*
++.DS_Store
++.vscode/*
++!.vscode/extensions.json
++.idea/
+diff --git a/CHANGES.md b/CHANGES.md
+new file mode 100644
+index 0000000..918e3ab
+--- /dev/null
++++ b/CHANGES.md
+@@ -0,0 +1,40 @@
++# PrepTrack: fixes applied
++
++## Why the manual add failed ("Missing or insufficient permissions")
++Firestore rejects writes when rules don't allow them. Projects created in
++Firebase "test mode" get rules that expire after 30 days and then deny
++everything. The repo had no rules file, so the rules in use were whatever
++was published in the console. `client/firestore.rules` now allows each
++signed-in user to access only `users/{their uid}/...`. Deploy it with:
++
++    cd client
++    firebase deploy --only firestore:rules,hosting
++
++## Sync
++- Sync no longer depends on localhost. It uses `VITE_API_URL`.
++  Copy `client/.env.example` to `client/.env.production` and set your Render URL before building.
++- Real difficulty and topic are fetched from LeetCode for each new problem (previously always Medium / Other).
++- Already-tracked problems are skipped with one read, not one query per problem.
++- Existing problems you've edited are never overwritten.
++- Error messages show the real cause instead of "is it running on port 5000?".
++
++## Server (Render)
++- Set `ALLOWED_ORIGINS=https://preptrack.ankurrai.in,https://preptrack-c7d42.web.app,http://localhost:5173`
++- Set `NODE_VERSION=18` or newer. Root directory: `server`. Start: `node server.js`.
++- Only two LeetCode operations are allowed. Raw GraphQL is rejected.
++- Usernames and slugs are validated. Requests have a 10-second timeout.
++- 30 requests per minute per IP.
++- `GET /health` returns `{"ok":true}`.
++
++## Revisions and insights
++- "Mark as revised" now uses `markRevision`, so the revision count and last-revised date are recorded.
++- The insight text now says "most-practiced topic", since it counts problems rather than measuring strength.
++
++## Repo hygiene
++- Root `.gitignore` covers node_modules, build output, Vite and Firebase caches, and env files.
++- Removed `client/.vite` and `client/.firebase` (build caches). Run `git rm -r --cached` on them if they're tracked.
++
++## Not yet done
++- Server-side Firebase ID token verification (proxy still trusts anyone who can reach it, within the rate limit).
++- Dashboard shows an empty state on any Firestore error (`getUserProblems` swallows errors). Surfacing them would hide the real cause of problems like the one above.
++- Overdue revision tracking and README streak/insight features.
+diff --git a/client/.env.example b/client/.env.example
+new file mode 100644
+index 0000000..df0ee40
+--- /dev/null
++++ b/client/.env.example
+@@ -0,0 +1,2 @@
++# Copy to .env.production and set your Render URL (no trailing slash)
++VITE_API_URL=https://YOUR-SERVICE.onrender.com
+diff --git a/client/firebase.json b/client/firebase.json
+index 2c33c29..858f143 100644
+--- a/client/firebase.json
++++ b/client/firebase.json
+@@ -1,8 +1,12 @@
+ {
++  "firestore": {
++    "rules": "firestore.rules"
++  },
+   "hosting": {
+     "public": "dist",
+     "ignore": [
+       "firebase.json",
++      "firestore.rules",
+       "**/.*",
+       "**/node_modules/**"
+     ],
+diff --git a/client/firestore.rules b/client/firestore.rules
+new file mode 100644
+index 0000000..df071ab
+--- /dev/null
++++ b/client/firestore.rules
+@@ -0,0 +1,18 @@
++rules_version = '2';
++service cloud.firestore {
++  match /databases/{database}/documents {
++    // Each signed-in user can read and write only their own data
++    match /users/{userId} {
++      allow read, write: if request.auth != null && request.auth.uid == userId;
++
++      match /{document=**} {
++        allow read, write: if request.auth != null && request.auth.uid == userId;
++      }
++    }
++
++    // Deny everything else
++    match /{document=**} {
++      allow read, write: if false;
++    }
++  }
++}
+diff --git a/client/src/components/dashboard/InsightsCard.jsx b/client/src/components/dashboard/InsightsCard.jsx
+index 1dbb6ea..8014ef0 100644
+--- a/client/src/components/dashboard/InsightsCard.jsx
++++ b/client/src/components/dashboard/InsightsCard.jsx
+@@ -43,7 +43,7 @@ const InsightsCard = ({ problems = [] }) => {
+     if (sortedTopics.length > 0 && sortedTopics[0][1] >= 2) {
+       insights.push({
+         id: id++, type: 'positive', icon: Lightbulb, color: 'var(--success)',
+-        text: `Your strongest topic is ${sortedTopics[0][0]}. Keep it up!`
++        text: `Your most-practiced topic is ${sortedTopics[0][0]}. Keep it up!`
+       });
+     }
+ 
+diff --git a/client/src/firebase/leetcodeSync.js b/client/src/firebase/leetcodeSync.js
+new file mode 100644
+index 0000000..add06cc
+--- /dev/null
++++ b/client/src/firebase/leetcodeSync.js
+@@ -0,0 +1,104 @@
++import { collection, doc, getDocs, setDoc, serverTimestamp } from 'firebase/firestore';
++import { db } from './config';
++
++const API_URL = import.meta.env.VITE_API_URL;
++
++async function callProxy(operation, variables) {
++  if (!API_URL) {
++    throw new Error('Sync server is not configured. Set VITE_API_URL and rebuild.');
++  }
++
++  const res = await fetch(`${API_URL}/api/leetcode`, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ operation, variables }),
++  });
++
++  if (!res.ok) {
++    const body = await res.json().catch(() => ({}));
++    throw new Error(body.error || `Sync server responded with ${res.status}`);
++  }
++
++  const json = await res.json();
++  return json.data;
++}
++
++/**
++ * Syncs the user's recent LeetCode accepted submissions into Firestore.
++ * - Skips problems already tracked (matched by doc id or by title).
++ * - Fetches real difficulty and topic for each new problem.
++ * - Never overwrites problems the user has already edited.
++ */
++export async function syncLeetCodeSubmissions(userId, handle) {
++  const result = await callProxy('recentAcSubmissions', { username: handle, limit: 15 });
++  const submissions = result?.recentAcSubmissionList || [];
++
++  if (submissions.length === 0) {
++    return { added: 0, skipped: 0, message: 'No recent accepted submissions found.' };
++  }
++
++  // One read for the whole collection instead of one query per problem
++  const problemsRef = collection(db, 'users', userId, 'problems');
++  const existing = await getDocs(problemsRef);
++  const existingIds = new Set(existing.docs.map((d) => d.id));
++  const existingTitles = new Set(
++    existing.docs.map((d) => `${d.data().platform}|${(d.data().title || '').toLowerCase()}`)
++  );
++
++  let added = 0;
++  let skipped = 0;
++  let metaFallbacks = 0;
++
++  for (const sub of submissions) {
++    const docId = `leetcode_${sub.titleSlug}`;
++    const titleKey = `LeetCode|${sub.title.toLowerCase()}`;
++
++    if (existingIds.has(docId) || existingTitles.has(titleKey)) {
++      skipped += 1;
++      continue;
++    }
++
++    // Real difficulty and topic. Falls back to defaults if this one lookup fails.
++    let difficulty = 'Medium';
++    let topic = 'Other';
++    try {
++      const meta = await callProxy('questionMeta', { titleSlug: sub.titleSlug });
++      if (meta?.question) {
++        difficulty = meta.question.difficulty || difficulty;
++        topic = meta.question.topicTags?.[0]?.name || topic;
++      } else {
++        metaFallbacks += 1;
++      }
++    } catch {
++      metaFallbacks += 1;
++    }
++
++    await setDoc(doc(db, 'users', userId, 'problems', docId), {
++      title: sub.title,
++      platform: 'LeetCode',
++      difficulty,
++      topic,
++      status: 'Solved',
++      url: `https://leetcode.com/problems/${sub.titleSlug}/`,
++      source: 'leetcode-sync',
++      submittedAt: Number(sub.timestamp) * 1000,
++      isFavourite: false,
++      createdAt: serverTimestamp(),
++      lastRevised: serverTimestamp(),
++      revisionCount: 0,
++    });
++
++    existingIds.add(docId);
++    existingTitles.add(titleKey);
++    added += 1;
++  }
++
++  const fallbackNote =
++    metaFallbacks > 0 ? ` ${metaFallbacks} problem(s) used default difficulty/topic. You can edit them.` : '';
++
++  return {
++    added,
++    skipped,
++    message: `Synced successfully! Added ${added} new problems (${skipped} already tracked).${fallbackNote}`,
++  };
++}
+diff --git a/client/src/pages/Revisions.jsx b/client/src/pages/Revisions.jsx
+index bf41eec..d0f7f2d 100644
+--- a/client/src/pages/Revisions.jsx
++++ b/client/src/pages/Revisions.jsx
+@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
+ import { Search, ExternalLink, Filter, Edit2, CheckCircle, Star } from 'lucide-react';
+ import EditProblemModal from '../components/problems/EditProblemModal';
+ import { useAuth } from '../context/AuthContext';
+-import { getUserProblems, updateProblemStatus } from '../firebase/services';
++import { getUserProblems, updateProblemStatus, markRevision } from '../firebase/services';
+ 
+ const Revisions = () => {
+   const { currentUser } = useAuth();
+@@ -34,9 +34,13 @@ const Revisions = () => {
+   };
+ 
+   const handleMarkSolved = async (problemId) => {
++    const problem = problems.find(p => p.id === problemId);
++    const currentCount = problem?.revisionCount || 0;
+     try {
+-      await updateProblemStatus(currentUser.uid, problemId, { status: 'Solved' });
+-      setProblems(problems.map(p => p.id === problemId ? { ...p, status: 'Solved' } : p));
++      await markRevision(currentUser.uid, problemId, currentCount);
++      setProblems(problems.map(p => p.id === problemId
++        ? { ...p, status: 'Solved', revisionCount: currentCount + 1, lastRevised: new Date() }
++        : p));
+     } catch (error) {
+       alert("Failed to update status: " + error.message);
+     }
+diff --git a/client/src/pages/Settings.jsx b/client/src/pages/Settings.jsx
+index e03c159..99a9374 100644
+--- a/client/src/pages/Settings.jsx
++++ b/client/src/pages/Settings.jsx
+@@ -1,7 +1,8 @@
+ import { useState, useEffect } from 'react';
+ import { Save, RefreshCw } from 'lucide-react';
+ import { useAuth } from '../context/AuthContext';
+-import { getUserPreferences, updateUserPreferences, addProblem } from '../firebase/services';
++import { getUserPreferences, updateUserPreferences } from '../firebase/services';
++import { syncLeetCodeSubmissions } from '../firebase/leetcodeSync';
+ 
+ const Settings = () => {
+   const { currentUser } = useAuth();
+@@ -42,76 +43,18 @@ const Settings = () => {
+   };
+ 
+   const handleSync = async () => {
+-    if (!leetcodeHandle) {
++    const handle = leetcodeHandle.trim();
++    if (!handle) {
+       setSyncMessage('Please enter a LeetCode handle first.');
+       return;
+     }
+-
+     setIsSyncing(true);
+     setSyncMessage('');
+-
+     try {
+-      // Fetch recent 15 AC submissions from LeetCode
+-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+-      const response = await fetch(`${apiUrl}/api/leetcode`, {
+-        method: 'POST',
+-        headers: {
+-          'Content-Type': 'application/json'
+-        },
+-        body: JSON.stringify({
+-          query: `
+-            query recentAcSubmissions($username: String!, $limit: Int!) {
+-              recentAcSubmissionList(username: $username, limit: $limit) {
+-                id
+-                title
+-                titleSlug
+-                timestamp
+-              }
+-            }
+-          `,
+-          variables: {
+-            username: leetcodeHandle,
+-            limit: 15
+-          }
+-        })
+-      });
+-
+-      const data = await response.json();
+-      
+-      if (data.errors) {
+-        setSyncMessage('Failed to fetch stats. Please check the handle.');
+-      } else {
+-        const submissions = data.data.recentAcSubmissionList;
+-        if (!submissions || submissions.length === 0) {
+-          setSyncMessage('No recent accepted submissions found.');
+-          return;
+-        }
+-
+-        let addedCount = 0;
+-        let duplicateCount = 0;
+-
+-        for (const sub of submissions) {
+-          try {
+-            await addProblem(currentUser.uid, {
+-              title: sub.title,
+-              platform: 'LeetCode',
+-              difficulty: 'Medium', // We default to Medium since GraphQL recentAcSubmissionList doesn't return difficulty easily
+-              topic: 'Other',
+-              status: 'Solved',
+-              url: `https://leetcode.com/problems/${sub.titleSlug}/`
+-            });
+-            addedCount++;
+-          } catch (error) {
+-            if (error.message.includes('already exists')) {
+-              duplicateCount++;
+-            }
+-          }
+-        }
+-
+-        setSyncMessage(`Synced successfully! Added ${addedCount} new problems (${duplicateCount} skipped). Check your dashboard.`);
+-      }
++      const { message } = await syncLeetCodeSubmissions(currentUser.uid, handle);
++      setSyncMessage(message);
+     } catch (err) {
+-      setSyncMessage('Failed to connect to proxy server. Is it running on port 5000?');
++      setSyncMessage(`Sync failed: ${err.message}`);
+     } finally {
+       setIsSyncing(false);
+     }
+diff --git a/server/server.js b/server/server.js
+index 80229e7..c1f5c87 100644
+--- a/server/server.js
++++ b/server/server.js
+@@ -5,31 +5,123 @@ const axios = require('axios');
+ const app = express();
+ const PORT = process.env.PORT || 5000;
+ 
+-app.use(cors());
+-app.use(express.json());
++// Comma-separated list, set on Render. Example:
++// https://preptrack.ankurrai.in,https://preptrack-c7d42.web.app,http://localhost:5173
++const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
++  .split(',')
++  .map((s) => s.trim())
++  .filter(Boolean);
++
++app.set('trust proxy', 1); // Render sits behind a proxy, so req.ip is the real client
++app.use(
++  cors({
++    origin(origin, cb) {
++      // No Origin header = health checks / curl. Otherwise must be on the allowlist.
++      if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
++      return cb(null, false);
++    },
++  })
++);
++app.use(express.json({ limit: '10kb' }));
++
++// Rate limit: 30 requests per minute per IP (in-memory)
++const WINDOW_MS = 60_000;
++const MAX_REQUESTS = 30;
++const hits = new Map();
++
++function rateLimit(req, res, next) {
++  const now = Date.now();
++  const entry = hits.get(req.ip) || { count: 0, start: now };
++  if (now - entry.start > WINDOW_MS) {
++    entry.count = 0;
++    entry.start = now;
++  }
++  entry.count += 1;
++  hits.set(req.ip, entry);
++  if (entry.count > MAX_REQUESTS) {
++    return res.status(429).json({ error: 'Too many requests. Try again in a minute.' });
++  }
++  next();
++}
++
++setInterval(() => {
++  const now = Date.now();
++  for (const [ip, entry] of hits) {
++    if (now - entry.start > WINDOW_MS) hits.delete(ip);
++  }
++}, WINDOW_MS).unref();
++
++// Only these operations are allowed. The client picks one by name and cannot send raw GraphQL.
++const OPERATIONS = {
++  recentAcSubmissions: {
++    query: `
++      query recentAcSubmissions($username: String!, $limit: Int!) {
++        recentAcSubmissionList(username: $username, limit: $limit) {
++          id
++          title
++          titleSlug
++          timestamp
++        }
++      }
++    `,
++    validate: (v) =>
++      typeof v.username === 'string' &&
++      /^[A-Za-z0-9_-]{1,39}$/.test(v.username) &&
++      Number.isInteger(v.limit) &&
++      v.limit > 0 &&
++      v.limit <= 50,
++  },
++  questionMeta: {
++    query: `
++      query questionMeta($titleSlug: String!) {
++        question(titleSlug: $titleSlug) {
++          difficulty
++          topicTags {
++            name
++          }
++        }
++      }
++    `,
++    validate: (v) => typeof v.titleSlug === 'string' && /^[a-z0-9-]{1,100}$/.test(v.titleSlug),
++  },
++};
++
++app.get('/health', (_req, res) => res.json({ ok: true }));
++
++app.post('/api/leetcode', rateLimit, async (req, res) => {
++  const { operation, variables } = req.body || {};
++  const op = OPERATIONS[operation];
++
++  if (!op || !variables || typeof variables !== 'object' || !op.validate(variables)) {
++    return res.status(400).json({ error: 'Invalid request' });
++  }
+ 
+-// Proxy endpoint for LeetCode GraphQL
+-app.post('/api/leetcode', async (req, res) => {
+   try {
+-    const { query, variables } = req.body;
+-    
+-    const response = await axios.post('https://leetcode.com/graphql', {
+-      query,
+-      variables
+-    }, {
+-      headers: {
+-        'Content-Type': 'application/json',
+-        'Referer': 'https://leetcode.com'
++    const response = await axios.post(
++      'https://leetcode.com/graphql',
++      { query: op.query, variables },
++      {
++        timeout: 10_000,
++        headers: {
++          'Content-Type': 'application/json',
++          Referer: 'https://leetcode.com',
++          // LeetCode may reject requests that don't look like a browser
++          'User-Agent':
++            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
++        },
+       }
+-    });
++    );
+ 
+-    res.json(response.data);
++    if (response.data.errors) {
++      return res.status(502).json({ error: 'LeetCode returned an error for this request' });
++    }
++    return res.json({ data: response.data.data });
+   } catch (error) {
+-    console.error('Error fetching LeetCode data:', error.message);
+-    res.status(500).json({ error: 'Failed to fetch from LeetCode API' });
++    console.error('LeetCode request failed:', error.message);
++    return res.status(502).json({ error: 'Could not reach LeetCode. Try again shortly.' });
+   }
+ });
+ 
+ app.listen(PORT, () => {
+-  console.log(`Proxy server is running on port ${PORT}`);
++  console.log(`Proxy running on port ${PORT}. Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
+ });

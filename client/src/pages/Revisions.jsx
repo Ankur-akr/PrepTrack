@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, ExternalLink, Filter, Edit2, CheckCircle, Star } from 'lucide-react';
 import EditProblemModal from '../components/problems/EditProblemModal';
 import { useAuth } from '../context/AuthContext';
-import { getUserProblems, updateProblemStatus } from '../firebase/services';
+import { getUserProblems, updateProblemStatus, markRevision } from '../firebase/services';
 
 const Revisions = () => {
   const { currentUser } = useAuth();
@@ -34,9 +34,13 @@ const Revisions = () => {
   };
 
   const handleMarkSolved = async (problemId) => {
+    const problem = problems.find(p => p.id === problemId);
+    const currentCount = problem?.revisionCount || 0;
     try {
-      await updateProblemStatus(currentUser.uid, problemId, { status: 'Solved' });
-      setProblems(problems.map(p => p.id === problemId ? { ...p, status: 'Solved' } : p));
+      await markRevision(currentUser.uid, problemId, currentCount);
+      setProblems(problems.map(p => p.id === problemId
+        ? { ...p, status: 'Solved', revisionCount: currentCount + 1, lastRevised: new Date() }
+        : p));
     } catch (error) {
       alert("Failed to update status: " + error.message);
     }

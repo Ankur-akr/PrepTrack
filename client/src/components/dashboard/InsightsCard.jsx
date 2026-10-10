@@ -43,7 +43,7 @@ const InsightsCard = ({ problems = [] }) => {
     if (sortedTopics.length > 0 && sortedTopics[0][1] >= 2) {
       insights.push({
         id: id++, type: 'positive', icon: Lightbulb, color: 'var(--success)',
-        text: `Your strongest topic is ${sortedTopics[0][0]}. Keep it up!`
+        text: `Your most-practiced topic is ${sortedTopics[0][0]}. Keep it up!`
       });
     }
 
